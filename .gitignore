@@ -1,0 +1,12 @@
+.build/
+build/
+build-dev/
+.signing/
+.trash/
+*.xcodeproj
+.DS_Store
+
+# Local, uncommitted extensions of this checkout (never published)
+Sources/*/Local/
+Tests/*/Local/
+.local-parked/
