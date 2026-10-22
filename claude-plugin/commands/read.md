@@ -1,5 +1,5 @@
 ---
-description: Open the previous reply in the Monoword reader (works with the mode off too).
+description: Play the previous reply again, above the prompt in terminal mode or in the Monoword app in app mode (works with the mode off too).
 allowed-tools: Bash(bash "${CLAUDE_PLUGIN_ROOT}/scripts/read-last.sh":*)
 ---
 !`bash "${CLAUDE_PLUGIN_ROOT}/scripts/read-last.sh" "${CLAUDE_PLUGIN_DATA}" "${CLAUDE_SESSION_ID}"`

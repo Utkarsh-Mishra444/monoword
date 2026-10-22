@@ -10,3 +10,6 @@ build-dev/
 Sources/*/Local/
 Tests/*/Local/
 .local-parked/
+
+# Written by Claude Code when it loads the plugin's mod (claude plugin test); not part of the plugin
+claude-plugin/tsconfig.json

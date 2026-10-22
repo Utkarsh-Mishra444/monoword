@@ -9,6 +9,8 @@ let package = Package(
     platforms: [.macOS(.v14)],
     products: [
         .executable(name: "Monoword", targets: ["MonowordApp"]),
+        // The reader's timetable for a text, for other players (the Claude Code plugin's band).
+        .executable(name: "monoword-schedule", targets: ["MonowordSchedule"]),
     ],
     targets: [
         // Text cleaning, tokenizing, timing and the reading cursor. No AppKit here, so the same
@@ -25,6 +27,13 @@ let package = Package(
             path: "Sources/MonowordApp",
             swiftSettings: [.swiftLanguageMode(.v5)],
             linkerSettings: [.linkedFramework("Carbon"), .linkedFramework("ServiceManagement")]
+        ),
+        // Command line tool: no AppKit, no Info.plist, so running it registers nothing with macOS.
+        .executableTarget(
+            name: "MonowordSchedule",
+            dependencies: ["MonowordCore"],
+            path: "Sources/MonowordSchedule",
+            swiftSettings: [.swiftLanguageMode(.v5)]
         ),
         .testTarget(
             name: "MonowordCoreTests",

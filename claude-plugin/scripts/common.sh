@@ -2,8 +2,10 @@
 # Shared by the Monoword plugin scripts. Sourced, not run.
 #
 # State lives in the plugin's data directory (Claude Code keeps it across plugin updates):
-#   sessions/<session id>   "on" or "off" for that session
+#   sessions/<session id>   "tty", "app" or "off" for that session (written by mode.sh only;
+#                           "on", from plugin 1.0.0, reads as "app")
 #   replies/<session id>.txt  the last finished reply of that session
+#   settings.json           {"wpm": 500}: the terminal player's speed (speed.sh)
 # Hooks get the directory as $CLAUDE_PLUGIN_DATA; the slash commands pass it as an argument,
 # because Claude Code substitutes ${CLAUDE_PLUGIN_DATA} in the command text, not in the shell.
 
@@ -20,10 +22,24 @@ monoword_session_id() {  # $1: session id from the hook input or the command, ma
     printf '%s' "$id"
 }
 
-monoword_mode_is_on() {  # $1: state dir, $2: session id
-    local f="$1/sessions/$2"
-    if [ -f "$f" ]; then [ "$(cat "$f")" = "on" ]; return; fi
-    [ -f "$1/sessions/default" ] && [ "$(cat "$1/sessions/default")" = "on" ]
+monoword_mode() {  # $1: state dir, $2: session id. Prints tty, app or off.
+    local f="$1/sessions/$2" word=""
+    if [ -f "$f" ]; then word="$(cat "$f")"
+    elif [ -f "$1/sessions/default" ]; then word="$(cat "$1/sessions/default")"
+    fi
+    case "$word" in
+        tty) printf 'tty' ;;
+        app|on) printf 'app' ;;
+        *) printf 'off' ;;
+    esac
+}
+
+monoword_mode_is_on() {  # $1: state dir, $2: session id. True in terminal and app mode.
+    [ "$(monoword_mode "$1" "$2")" != "off" ]
+}
+
+monoword_app_installed() {
+    [ -d "/Applications/Monoword.app" ] || [ -d "$HOME/Applications/Monoword.app" ]
 }
 
 # Reads a JSON object on stdin and prints the string value of key $1, or nothing.

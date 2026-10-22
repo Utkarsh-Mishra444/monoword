@@ -1,6 +1,7 @@
 #!/bin/bash
-# Stop hook. Saves the finished reply for /monoword:read and, while Monoword mode is on for this
-# session, opens it in the Monoword reader. Never blocks Claude from stopping.
+# Stop hook. Saves the finished reply (for /monoword:read and the terminal player) and, in app mode
+# only, opens it in the Monoword app. In terminal mode the plugin's mod (hooks/band.mjs) plays it
+# above the prompt; nothing is opened. Never blocks Claude from stopping.
 set -u
 . "$(dirname "$0")/common.sh"
 
@@ -22,7 +23,7 @@ fi
 file="$state/replies/$sid.txt"
 printf '%s\n' "$text" > "$file"
 
-monoword_mode_is_on "$state" "$sid" || exit 0
+[ "$(monoword_mode "$state" "$sid")" = "app" ] || exit 0
 if ! monoword_open_file "$file"; then
     if command -v jq >/dev/null 2>&1; then
         jq -n --arg m "$monoword_install_hint" '{systemMessage: $m}'

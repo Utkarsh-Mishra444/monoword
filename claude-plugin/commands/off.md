@@ -1,5 +1,5 @@
 ---
-description: Monoword mode off. Back to normal formatting; replies no longer open in Monoword.
+description: Monoword mode off. Back to normal formatting; replies no longer play or open in Monoword.
 allowed-tools: Bash(bash "${CLAUDE_PLUGIN_ROOT}/scripts/mode.sh":*)
 ---
 !`bash "${CLAUDE_PLUGIN_ROOT}/scripts/mode.sh" off "${CLAUDE_PLUGIN_DATA}" "${CLAUDE_SESSION_ID}"`

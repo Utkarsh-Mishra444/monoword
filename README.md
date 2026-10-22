@@ -76,18 +76,23 @@ Speed, pacing, theme, font and shortcuts are in Settings (menu bar â€º Settingsâ
 
 A [Claude Code](https://code.claude.com) plugin turns a session into something you can read
 one word at a time. After `/monoword:on`, Claude writes its replies as plain spoken prose
-(the answer first, short sentences, no markdown, no symbols) and each finished reply opens in
-Monoword by itself. `/monoword:off` ends it; `/monoword:read` opens the previous reply any time.
+(the answer first, short sentences, no markdown, no symbols) and each finished reply plays one
+word at a time in a strip directly above the prompt, in the terminal itself. `/monoword:off` ends
+it; `/monoword:read` plays the previous reply again; `/monoword:speed 600` sets the strip's speed.
+The strip needs Claude Code 2.1.287 or later.
 
-![A Claude reply playing in Monoword at 500 wpm](docs/demo.gif)
+`/monoword:on app` opens each reply in the Monoword app instead:
+
+![A Claude reply playing in the Monoword app at 500 wpm](docs/demo.gif)
 
 ```sh
 claude plugin marketplace add Utkarsh-Mishra444/monoword
 claude plugin install monoword@monoword
 ```
 
-Details, including what the plugin tells Claude and where it keeps its state, are in
-[claude-plugin/README.md](claude-plugin/README.md).
+The strip uses the app's own timing when it finds the `monoword-schedule` tool, and a simpler
+pacing at the same real speed when it does not. Details, including what the plugin tells Claude,
+the controls and where it keeps its state, are in [claude-plugin/README.md](claude-plugin/README.md).
 
 ## How it works
 
@@ -141,6 +146,9 @@ For example: `open "monoword://read?file=$HOME/notes.txt"`.
 ```sh
 scripts/test.sh                 # core unit tests (swift-testing), including the real-speed grid
 scripts/build-app.sh            # build/Monoword.app (MONOWORD_UNIVERSAL=1 for arm64 + x86_64)
+swift build -c release --product monoword-schedule   # the reader's timetable for a text
+node --test claude-plugin/tests/player.test.mjs     # the plugin's terminal strip: layout, pacing
+claude plugin test claude-plugin                     # the strip's hooks
 build/Monoword.app/Contents/MacOS/Monoword --selftest /tmp/mw   # headless UI test + PNG frames
 build/Monoword.app/Contents/MacOS/Monoword --selftest-live      # on-screen focus, rhythm and speed check
 ```
@@ -151,6 +159,10 @@ AppKit shell. `build/Monoword.app/Contents/MacOS/Monoword --render text.txt fram
 one PNG per flash plus `frames.txt` with each hold, headless, for demo animations (that is how
 `docs/demo.gif` was made). Running a build copy registers it as the handler for `monoword://`
 links; `scripts/install.sh` puts the installed copy back, which the Claude Code plugin relies on.
+`monoword-schedule <text file | -> [wpm] [--chunk auto|1|2|3] [--frames 60]` prints the same
+timetable without the app, one `shown<TAB>seconds<TAB>words` line per flash; with `--frames 60`
+its holds match `frames.txt`. It is a bare executable with no app bundle and no Info.plist, so it
+cannot take over `monoword://` links.
 
 ## License
 

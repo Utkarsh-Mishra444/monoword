@@ -1,5 +1,8 @@
 {
-  "description": "Monoword mode: style notes on every prompt while the mode is on, and each finished reply opened in the Monoword reader.",
+  "description": "Monoword mode: style notes on every prompt while the mode is on; each finished reply played one word at a time above the prompt (terminal mode, the band.mjs mod) or opened in the Monoword app (app mode).",
+  "modules": [
+    "./band.mjs"
+  ],
   "hooks": {
     "UserPromptSubmit": [
       {
@@ -20,7 +23,7 @@
             "type": "command",
             "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/stop-hook.sh\"",
             "timeout": 20,
-            "statusMessage": "Opening the reply in Monoword"
+            "statusMessage": "Saving the reply for Monoword"
           }
         ]
       }
