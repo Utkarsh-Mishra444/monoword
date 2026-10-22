@@ -15,6 +15,18 @@ export function wpmFromSettings(text) {
   return WPM_DEFAULT
 }
 
+export const ALIGNS = ['left', 'center', 'right']
+export const ALIGN_DEFAULT = 'center'
+
+/** Where the word sits in the strip, from the plugin's settings.json text: left, center or right, else center. */
+export function alignFromSettings(text) {
+  try {
+    const align = JSON.parse(text)?.align
+    if (ALIGNS.includes(align)) return align
+  } catch {}
+  return ALIGN_DEFAULT
+}
+
 /** A session file's word as a mode: "tty", "app" or "off". Plugin 1.0.0 wrote "on", which opened the app. */
 export function modeFromFile(text) {
   const word = String(text ?? '').trim()
@@ -177,4 +189,76 @@ export function layoutRow({ width, word, controls = 0, right = '' }) {
     afterWord: Math.max(0, width - start - w - r),
     right: rightText,
   }
+}
+
+/** The cells between the word and whatever sits beside it when it is at an edge. */
+export const EDGE_MARGIN = 2
+const BLOCK_GAP = 2
+
+/**
+ * The row as a list of segments, left to right, for every alignment:
+ *   center  [controls] [pad] word [pad] [progress]        the word centred on the whole width
+ *   left    [margin] word [pad] [progress] [gap] [controls]   every word starts at the same column
+ *   right   [controls] [gap] [progress] [pad] word [margin]   every word ends at the same column
+ * Segments: 'controls', 'word', { pad }, { text } (the progress, dim). The controls go first and
+ * then the progress when the row is too narrow for them; the word always fits.
+ */
+export function bandRow({ width, word, align = ALIGN_DEFAULT, controls = 0, right = '' }) {
+  if (align === 'center' || !ALIGNS.includes(align)) {
+    const row = layoutRow({ width, word, controls, right })
+    const segments = []
+    if (row.controls) segments.push('controls')
+    if (row.beforeWord > 0) segments.push({ pad: row.beforeWord })
+    segments.push('word')
+    if (row.right) {
+      if (row.afterWord > 0) segments.push({ pad: row.afterWord })
+      segments.push({ text: row.right })
+    }
+    return { word: row.word, segments }
+  }
+  const margin = Math.min(EDGE_MARGIN, Math.max(0, width - 1))
+  const shown = fitCells(word, Math.max(1, width - margin))
+  const w = cellWidth(shown)
+  let text = right
+  let r = cellWidth(text)
+  let c = controls
+  // The side block: the progress, a gap, the controls; what does not fit goes, controls first.
+  const need = (cells) => margin + w + 1 + cells
+  if (c > 0 && need(r + (r > 0 ? BLOCK_GAP : 0) + c) > width) c = 0
+  if (r > 0 && need(r) > width) { text = ''; r = 0 }
+  const side = []
+  if (align === 'left') {
+    if (r > 0) side.push({ text })
+    if (c > 0) {
+      if (r > 0) side.push({ pad: BLOCK_GAP })
+      side.push('controls')
+    }
+  } else {
+    if (c > 0) side.push('controls')
+    if (r > 0) {
+      if (c > 0) side.push({ pad: BLOCK_GAP })
+      side.push({ text })
+    }
+  }
+  const sideCells = r + c + (r > 0 && c > 0 ? BLOCK_GAP : 0)
+  const pad = Math.max(0, width - margin - w - sideCells)
+  const segments = []
+  if (align === 'left') {
+    if (margin > 0) segments.push({ pad: margin })
+    segments.push('word')
+    if (side.length > 0) {
+      if (pad > 0) segments.push({ pad })
+      segments.push(...side)
+    }
+  } else {
+    if (side.length > 0) {
+      segments.push(...side)
+      if (pad > 0) segments.push({ pad })
+    } else if (pad > 0) {
+      segments.push({ pad })
+    }
+    segments.push('word')
+    if (margin > 0) segments.push({ pad: margin })
+  }
+  return { word: shown, segments }
 }

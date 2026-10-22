@@ -5,7 +5,8 @@
 #   sessions/<session id>   "tty", "app" or "off" for that session (written by mode.sh only;
 #                           "on", from plugin 1.0.0, reads as "app")
 #   replies/<session id>.txt  the last finished reply of that session
-#   settings.json           {"wpm": 500}: the terminal player's speed (speed.sh)
+#   settings.json           {"wpm": 500, "align": "center"}: the terminal player's speed (speed.sh)
+#                           and where the word sits in the strip (align.sh)
 # Hooks get the directory as $CLAUDE_PLUGIN_DATA; the slash commands pass it as an argument,
 # because Claude Code substitutes ${CLAUDE_PLUGIN_DATA} in the command text, not in the shell.
 
@@ -51,6 +52,47 @@ monoword_json_string() {
 v = json.load(sys.stdin).get(sys.argv[1])
 if isinstance(v, str): sys.stdout.write(v)' "$1"
     fi
+}
+
+# The terminal player's settings.json. Each key is set on its own, so speed.sh and align.sh never
+# wipe each other's value; a file that is not a JSON object is replaced.
+monoword_setting_get() {  # $1: settings file, $2: key. Prints the value as text, or nothing.
+    [ -f "$1" ] || return 0
+    if command -v jq >/dev/null 2>&1; then
+        jq -r --arg k "$2" 'if type == "object" then (.[$k] // empty | tostring) else empty end' "$1" 2>/dev/null
+    else
+        python3 -c 'import json, sys
+try:
+    v = json.load(open(sys.argv[1]))
+except Exception:
+    v = None
+if isinstance(v, dict) and v.get(sys.argv[2]) is not None:
+    print(v[sys.argv[2]])' "$1" "$2" 2>/dev/null
+    fi
+}
+
+monoword_setting_set() {  # $1: settings file, $2: key, $3: value as JSON (500 or "\"left\"")
+    local file="$1" tmp="$1.tmp"
+    mkdir -p "$(dirname "$file")" || return 1
+    if command -v jq >/dev/null 2>&1; then
+        if [ -f "$file" ]; then
+            jq --arg k "$2" --argjson v "$3" 'if type == "object" then . else {} end | .[$k] = $v' "$file" > "$tmp" 2>/dev/null \
+                || jq -n --arg k "$2" --argjson v "$3" '{} | .[$k] = $v' > "$tmp"
+        else
+            jq -n --arg k "$2" --argjson v "$3" '{} | .[$k] = $v' > "$tmp"
+        fi
+    else
+        python3 -c 'import json, sys
+path, key, value = sys.argv[1:4]
+try:
+    d = json.load(open(path))
+except Exception:
+    d = None
+if not isinstance(d, dict): d = {}
+d[key] = json.loads(value)
+json.dump(d, open(path + ".tmp", "w"))
+print(file=open(path + ".tmp", "a"))' "$file" "$2" "$3" 2>/dev/null
+    fi && mv "$tmp" "$file"
 }
 
 monoword_urlencode() {  # $1: string

@@ -158,6 +158,33 @@ test('/monoword:speed runs its script itself once the data folder is known', asy
   expect(runs[0].slice(2)).toEqual(['700', DATA])
 })
 
+test('/monoword:align runs its script itself and moves the word on screen at once', async ($, on) => {
+  const files: Record<string, string> = { [`${DATA}/sessions/S1`]: 'tty' }
+  const clock = world(on, files)
+  const runs: (readonly string[])[] = []
+  on('process.run', ($, e) => {
+    runs.push(e.argv)
+    files[`${DATA}/settings.json`] = '{"align": "left"}'      // what align.sh leaves behind
+    return { value: { exitCode: 0, stdout: 'The word now starts at the left of the strip, at the same column every time.\n', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
+  })
+  on('command.run', () => ({ text: 'the command ran through the model' }))
+  await $.classic.Stop({ session_id: 'S1', last_assistant_message: REPLY, stop_hook_active: false })
+  await clock.settle()
+  const ui = await $.ui.mount(BAND)
+  // Centred at 95 columns: 46 cells before "One", 29 of them the controls, then 17 of padding.
+  expect(await ui.find({ type: 'Text', text: /^ {17}$/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^ {2}$/ })).toBeUndefined()
+  const answer = await $.command.run({ command: 'monoword:align', args: 'left' })
+  expect(answer.text).toBeUndefined()
+  expect(toasts).toEqual(['The word now starts at the left of the strip, at the same column every time.'])
+  expect(runs[0][1]).toMatch(/scripts\/align\.sh$/)
+  expect(runs[0].slice(2)).toEqual(['left', DATA])
+  // Left: a two-cell margin, then the word, then the padding up to the progress and the controls.
+  expect(await ui.find({ type: 'Text', text: /^ {2}$/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^ {17}$/ })).toBeUndefined()
+  expect(await shown(ui, 'One')).toBeDefined()
+})
+
 test('/monoword:speed before the session has any Monoword file runs the command as written', async ($, on) => {
   world(on, {})
   on('command.run', () => ({ text: 'the command ran through the model' }))

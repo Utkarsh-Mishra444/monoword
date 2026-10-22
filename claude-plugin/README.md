@@ -14,6 +14,7 @@ strip directly above the prompt, in the terminal itself. `/monoword:off` ends it
 | `/monoword:off` | back to normal formatting; nothing plays or opens |
 | `/monoword:read` | play the previous reply again: above the prompt, or in the app in app mode; with the mode off, in the app if it is installed, else above the prompt |
 | `/monoword:speed 600` | the strip's speed in words a minute, pauses included, 100 to 1500 (500 to start with); the app keeps its own setting |
+| `/monoword:align left` | where the word sits in the strip: `left` (every word starts at the same column), `center` (to start with) or `right` (every word ends at the same column) |
 
 ## Terminal mode
 
@@ -37,9 +38,18 @@ Controls, none of which goes through Claude:
 - ctrl+x tab puts the keyboard on the strip; ctrl+x ctrl+a, or the `[-]` at its right end, folds
   it away. Both are Claude Code's own.
 
-`/monoword:read` and `/monoword:speed` take no turn from Claude in terminal mode either: the
-strip answers them itself, with a short note in a toast where there is something to say, and
-Claude does not see them.
+`/monoword:read`, `/monoword:speed` and `/monoword:align` take no turn from Claude in terminal
+mode either: the strip answers them itself, with a short note in a toast where there is something
+to say, and Claude does not see them. A new alignment moves the word that is on screen at once;
+at the left or the right the controls and the progress move to the other side, two cells in from
+the edge:
+
+```
+  sky                                        word 37 of 212 · 0:21 left  1: pause  2: restart  3: stop
+```
+
+The size of the word is your terminal's font size (Cmd and plus in most terminals); a strip is
+drawn in character cells and has no font size of its own.
 
 **Speed.** 500 wpm means 500 words a minute with the pauses included. When the plugin finds
 `monoword-schedule`, a small command line tool built from this repository, the strip uses the
@@ -112,7 +122,8 @@ Uninstall: `claude plugin uninstall monoword@monoword`.
   `~/.claude/plugins/data/` (`monoword-monoword/` when installed from this marketplace,
   `monoword-inline/` with `--plugin-dir`): `sessions/<id>` holds `tty`, `app` or `off` (written
   only by `scripts/mode.sh`; an `on` left by version 1.0 counts as `app`), `replies/<id>.txt`
-  holds the last finished reply of that session, and `settings.json` holds the strip's speed.
+  holds the last finished reply of that session, and `settings.json` holds the strip's speed and
+  alignment.
   Nothing leaves your Mac; Monoword itself has no network access.
 - The scripts are bash and use `jq` when present, else `python3` (macOS 15 and later ship both;
   on macOS 14, `python3` comes with the Xcode Command Line Tools).

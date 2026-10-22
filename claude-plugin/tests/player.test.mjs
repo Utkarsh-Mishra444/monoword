@@ -2,8 +2,9 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  cellWidth, clock, dataDirCandidates, doneText, fallbackSchedule, fitCells, layoutRow,
-  modeFromFile, parseSchedule, progressText, wordNumber, wpmFromSettings,
+  EDGE_MARGIN, alignFromSettings, bandRow, cellWidth, clock, dataDirCandidates, doneText,
+  fallbackSchedule, fitCells, layoutRow, modeFromFile, parseSchedule, progressText, wordNumber,
+  wpmFromSettings,
 } from '../hooks/player.mjs'
 
 // The first lines of `monoword-schedule reply.txt 500` (the demo reply), then a pair, a split word
@@ -113,7 +114,61 @@ test('the word is centred on the whole width, controls and progress beside it', 
   assert.notEqual(wide.right, '')
 })
 
+/** The cells a bandRow's segments take, in order. */
+function cells(row, controls) {
+  return row.segments.map((s) => (s === 'controls' ? controls : s === 'word' ? cellWidth(row.word) : s.pad ?? cellWidth(s.text)))
+}
+
+test('left: every word starts at the same column; right: every word ends at the same column', () => {
+  const right = 'word 37 of 212 · 0:21 left'
+  for (const width of [155, 120, 75, 40]) {
+    for (const word of ['a', 'sky', 'wavelength', 'photosynthesis']) {
+      const left = bandRow({ width, word, align: 'left', controls: 27, right })
+      assert.deepEqual(left.segments.slice(0, 2), [{ pad: EDGE_MARGIN }, 'word'], `${width} ${word}`)
+      const leftCells = cells(left, 27)
+      assert.ok(leftCells.reduce((a, b) => a + b, 0) <= width)
+      if (left.segments.some((s) => s.text !== undefined)) assert.equal(leftCells.reduce((a, b) => a + b, 0), width)
+
+      const r = bandRow({ width, word, align: 'right', controls: 27, right })
+      assert.deepEqual(r.segments.slice(-2), ['word', { pad: EDGE_MARGIN }], `${width} ${word}`)
+      const rightCells = cells(r, 27)
+      assert.ok(rightCells.reduce((a, b) => a + b, 0) <= width)
+      if (r.segments.some((s) => s.text !== undefined)) assert.equal(rightCells.reduce((a, b) => a + b, 0), width)
+      // The word ends at width - margin: everything before it fills the rest.
+      assert.equal(rightCells.slice(0, -2).reduce((a, b) => a + b, 0), width - EDGE_MARGIN - cellWidth(r.word))
+    }
+  }
+  // The side block: progress then controls at the left alignment, controls then progress at the right.
+  const wideLeft = bandRow({ width: 155, word: 'sky', align: 'left', controls: 27, right })
+  assert.deepEqual(wideLeft.segments.slice(2), [{ pad: 155 - 2 - 3 - 27 - 2 - cellWidth(right) }, { text: right }, { pad: 2 }, 'controls'])
+  const wideRight = bandRow({ width: 155, word: 'sky', align: 'right', controls: 27, right })
+  assert.deepEqual(wideRight.segments, ['controls', { pad: 2 }, { text: right }, { pad: 155 - 27 - 2 - cellWidth(right) - 3 - 2 }, 'word', { pad: 2 }])
+  // Narrow: the controls go first, then the progress; the word always fits.
+  const narrow = bandRow({ width: 40, word: 'wavelength', align: 'left', controls: 27, right })
+  assert.deepEqual(narrow.segments, [{ pad: 2 }, 'word', { pad: 40 - 2 - 10 - cellWidth(right) }, { text: right }])
+  const tiny = bandRow({ width: 20, word: 'wavelength', align: 'right', controls: 27, right })
+  assert.deepEqual(tiny.segments, [{ pad: 20 - 2 - 10 }, 'word', { pad: 2 }])
+  const cut = bandRow({ width: 8, word: 'photosynthesis', align: 'left', controls: 27, right })
+  assert.deepEqual(cut.segments, [{ pad: 2 }, 'word'])
+  assert.equal(cut.word, 'photo…')
+})
+
+test('center through bandRow is layoutRow, and an unknown alignment is centre', () => {
+  const right = 'word 37 of 212 · 0:21 left'
+  for (const align of ['center', 'sideways', undefined]) {
+    const row = bandRow({ width: 120, word: 'sky', align, controls: 27, right })
+    const plain = layoutRow({ width: 120, word: 'sky', controls: 27, right })
+    assert.deepEqual(row.segments, ['controls', { pad: plain.beforeWord }, 'word', { pad: plain.afterWord }, { text: right }])
+    assert.equal(cells(row, 27).reduce((a, b) => a + b, 0), 120)
+  }
+})
+
 test('settings, modes and data folders', () => {
+  assert.equal(alignFromSettings('{"align": "left"}'), 'left')
+  assert.equal(alignFromSettings('{"align": "right", "wpm": 700}'), 'right')
+  assert.equal(alignFromSettings('{"align": "middle"}'), 'center')
+  assert.equal(alignFromSettings('not json'), 'center')
+  assert.equal(alignFromSettings(undefined), 'center')
   assert.equal(wpmFromSettings('{"wpm": 700}'), 700)
   assert.equal(wpmFromSettings('{"wpm": 99}'), 500)
   assert.equal(wpmFromSettings('{"wpm": 600.5}'), 500)

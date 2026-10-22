@@ -78,8 +78,9 @@ A [Claude Code](https://code.claude.com) plugin turns a session into something y
 one word at a time. After `/monoword:on`, Claude writes its replies as plain spoken prose
 (the answer first, short sentences, no markdown, no symbols) and each finished reply plays one
 word at a time in a strip directly above the prompt, in the terminal itself. `/monoword:off` ends
-it; `/monoword:read` plays the previous reply again; `/monoword:speed 600` sets the strip's speed.
-The strip needs Claude Code 2.1.287 or later.
+it; `/monoword:read` plays the previous reply again; `/monoword:speed 600` sets the strip's speed
+and `/monoword:align left` moves the word to the left or the right edge. The strip needs Claude
+Code 2.1.287 or later.
 
 `/monoword:on app` opens each reply in the Monoword app instead:
 

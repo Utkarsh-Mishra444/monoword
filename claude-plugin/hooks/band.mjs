@@ -12,8 +12,8 @@
 // does not add up, and the band is redrawn once per word.
 
 import {
-  dataDirCandidates, doneText, fallbackSchedule, layoutRow, modeFromFile, parseSchedule,
-  progressText, wpmFromSettings, cellWidth,
+  alignFromSettings, bandRow, dataDirCandidates, doneText, fallbackSchedule, layoutRow,
+  modeFromFile, parseSchedule, progressText, wpmFromSettings, cellWidth,
 } from './player.mjs'
 
 const HOLD_LAST_MS = 2000
@@ -71,21 +71,35 @@ export function register(on) {
       $.ui.toast('There is no saved reply yet. Ask something first, then run /monoword:read.')
       return {}
     }
-    const wpm = dir ? wpmFromSettings(await readText($, `${dir}/settings.json`)) : wpmFromSettings('')
+    const settings = dir ? await readText($, `${dir}/settings.json`) : ''
     $.clock.after(0, () => {
-      return start($, text, wpm, dir)
+      return start($, text, wpmFromSettings(settings), dir, alignFromSettings(settings))
     })
     return {}
   }).catch(($, e, next) => next(e))
 
-  // /monoword:speed: once this session's data folder is known, the mod runs the command's own
-  // script and shows its answer in a toast, so a change of speed takes no model turn and Claude
-  // does not read about it; else the command runs as written.
+  // /monoword:speed and /monoword:align: once this session's data folder is known, the mod runs
+  // the command's own script and shows its answer in a toast, so the change takes no model turn
+  // and Claude does not read about it; else the command runs as written. A new alignment moves
+  // the word that is on screen at once.
   on('command.run', { command: 'monoword:speed' }, async ($, e, next) => {
     const dir = await findDataDir($, await $.session.id())
     if (!dir) return next(e)
     const run = await $.process.run(['bash', `${$.plugin.root}/scripts/speed.sh`, e.args ?? '', dir], { timeoutMs: 10000 })
     if (run.exitCode !== 0 || !run.stdout.trim()) return next(e)
+    $.ui.toast(run.stdout.trim(), { timeoutMs: 6000 })
+    return {}
+  }).catch(($, e, next) => next(e))
+
+  on('command.run', { command: 'monoword:align' }, async ($, e, next) => {
+    const dir = await findDataDir($, await $.session.id())
+    if (!dir) return next(e)
+    const run = await $.process.run(['bash', `${$.plugin.root}/scripts/align.sh`, e.args ?? '', dir], { timeoutMs: 10000 })
+    if (run.exitCode !== 0 || !run.stdout.trim()) return next(e)
+    if (playing) {
+      playing.align = alignFromSettings(await readText($, `${dir}/settings.json`))
+      $.ui.invalidate('ui.render')
+    }
     $.ui.toast(run.stdout.trim(), { timeoutMs: 6000 })
     return {}
   }).catch(($, e, next) => next(e))
@@ -127,27 +141,26 @@ export function register(on) {
     const gap = 2
     // The cells the controls take as drawn: "1: pause", two spaces, "2: restart", ...
     const controlCells = buttons.reduce((n, [k, label]) => n + cellWidth(`${k}: ${label}`), 0) + gap * (buttons.length - 1)
-    const row = layoutRow({
+    const row = bandRow({
       width,
+      align: p.align,
       word: p.schedule.flashes[index].text,
       controls: controlCells,
       right: progressText(p.schedule, index, { paused, finished: p.phase === 'holding' }),
     })
-    const children = []
-    if (row.controls) {
-      children.push(Box({
-        flexDirection: 'row',
-        columnGap: gap,
-        children: buttons.map(([hotkey, label, onPress]) =>
-          Button({ key: `monoword-${hotkey}`, label, hotkey, plain: true, dimColor: true, onPress })),
-      }))
-    }
-    if (row.beforeWord > 0) children.push(Text({ wrap: 'truncate', children: [' '.repeat(row.beforeWord)] }))
-    children.push(Text({ wrap: 'truncate', bold: true, children: [row.word] }))
-    if (row.right) {
-      if (row.afterWord > 0) children.push(Text({ wrap: 'truncate', children: [' '.repeat(row.afterWord)] }))
-      children.push(Text({ wrap: 'truncate', dimColor: true, children: [row.right] }))
-    }
+    const children = row.segments.map((segment) => {
+      if (segment === 'controls') {
+        return Box({
+          flexDirection: 'row',
+          columnGap: gap,
+          children: buttons.map(([hotkey, label, onPress]) =>
+            Button({ key: `monoword-${hotkey}`, label, hotkey, plain: true, dimColor: true, onPress })),
+        })
+      }
+      if (segment === 'word') return Text({ wrap: 'truncate', bold: true, children: [row.word] })
+      if (segment.text !== undefined) return Text({ wrap: 'truncate', dimColor: true, children: [segment.text] })
+      return Text({ wrap: 'truncate', children: [' '.repeat(segment.pad)] })
+    })
     return Box({ flexDirection: 'row', children })
   })
 }
@@ -213,9 +226,9 @@ async function replyFinished($, e) {
   // After /monoword:read run by its script (the mod was not answering it), this reply is only the
   // confirmation; the Stop script skips saving it, and it is not played either.
   if ((await readText($, `${dir}/sessions/${sid}.skip`))?.trim() === '1') return
-  const wpm = wpmFromSettings(await readText($, `${dir}/settings.json`))
+  const settings = await readText($, `${dir}/settings.json`)
   $.clock.after(0, () => {
-    return start($, text, wpm, dir)
+    return start($, text, wpmFromSettings(settings), dir, alignFromSettings(settings))
   })
 }
 
@@ -244,7 +257,7 @@ async function buildSchedule($, text, wpm) {
   return fallbackSchedule(text, wpm)
 }
 
-async function start($, text, wpm, dir) {
+async function start($, text, wpm, dir, align = 'center') {
   const gen = ++generation
   const schedule = await buildSchedule($, text, wpm)
   if (gen !== generation) return          // a newer reply, or a stop, came in meanwhile
@@ -256,7 +269,7 @@ async function start($, text, wpm, dir) {
   }
   const now = await $.clock.now()
   if (gen !== generation) return
-  playing = { gen, schedule, wpm, dir, index: 0, t0: now, phase: 'playing', timer: null, elapsedAtPause: 0, changes: [now], pauses: 0 }
+  playing = { gen, schedule, wpm, dir, align, index: 0, t0: now, phase: 'playing', timer: null, elapsedAtPause: 0, changes: [now], pauses: 0 }
   $.ui.invalidate('ui.render')
   await arm($, playing)
 }
