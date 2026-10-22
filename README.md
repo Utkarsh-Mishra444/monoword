@@ -147,7 +147,10 @@ build/Monoword.app/Contents/MacOS/Monoword --selftest-live      # on-screen focu
 
 `Sources/MonowordCore` is the platform-free engine (cleaning, tokenizing, pacing, grouping, frame
 timing, the reading cursor, the double-tap detector), unit tested. `Sources/MonowordApp` is the
-AppKit shell.
+AppKit shell. `build/Monoword.app/Contents/MacOS/Monoword --render text.txt frames/ 500` writes
+one PNG per flash plus `frames.txt` with each hold, headless, for demo animations (that is how
+`docs/demo.gif` was made). Running a build copy registers it as the handler for `monoword://`
+links; `scripts/install.sh` puts the installed copy back, which the Claude Code plugin relies on.
 
 ## License
 
