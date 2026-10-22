@@ -1,0 +1,29 @@
+{
+  "description": "Monoword mode: style notes on every prompt while the mode is on, and each finished reply opened in the Monoword reader.",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/prompt-hook.sh\"",
+            "timeout": 10,
+            "statusMessage": "Monoword style"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/stop-hook.sh\"",
+            "timeout": 20,
+            "statusMessage": "Opening the reply in Monoword"
+          }
+        ]
+      }
+    ]
+  }
+}

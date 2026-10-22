@@ -72,6 +72,21 @@ In the reader:
 
 Speed, pacing, theme, font and shortcuts are in Settings (menu bar › Settings…).
 
+## With Claude Code
+
+A [Claude Code](https://code.claude.com) plugin turns a session into something you can read
+one word at a time. After `/monoword:on`, Claude writes its replies as plain spoken prose
+(the answer first, short sentences, no markdown, no symbols) and each finished reply opens in
+Monoword by itself. `/monoword:off` ends it; `/monoword:read` opens the previous reply any time.
+
+```sh
+claude plugin marketplace add Utkarsh-Mishra444/monoword
+claude plugin install monoword@monoword
+```
+
+Details, including what the plugin tells Claude and where it keeps its state, are in
+[claude-plugin/README.md](claude-plugin/README.md).
+
 ## How it works
 
 - **Real speed.** The number is what you actually read: at 500 wpm a 500-word text takes one

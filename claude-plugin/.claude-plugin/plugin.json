@@ -1,0 +1,12 @@
+{
+  "name": "monoword",
+  "version": "1.0.0",
+  "description": "Read Claude's replies one word at a time. /monoword:on makes replies plain spoken prose and opens each one in the Monoword reader on your Mac.",
+  "author": {
+    "name": "Utkarsh Mishra"
+  },
+  "homepage": "https://github.com/Utkarsh-Mishra444/monoword",
+  "repository": "https://github.com/Utkarsh-Mishra444/monoword",
+  "license": "MIT",
+  "keywords": ["speed-reading", "rsvp", "reader", "accessibility", "macos"]
+}

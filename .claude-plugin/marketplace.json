@@ -1,0 +1,16 @@
+{
+  "name": "monoword",
+  "owner": {
+    "name": "Utkarsh Mishra"
+  },
+  "plugins": [
+    {
+      "name": "monoword",
+      "source": "./claude-plugin",
+      "description": "Read Claude's replies one word at a time. /monoword:on makes replies plain spoken prose and opens each one in the Monoword reader on your Mac.",
+      "version": "1.0.0",
+      "category": "productivity",
+      "keywords": ["speed-reading", "rsvp", "reader", "accessibility", "macos"]
+    }
+  ]
+}
