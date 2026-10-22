@@ -42,10 +42,11 @@ Uninstall: `claude plugin uninstall monoword@monoword`.
   `last_assistant_message`), saves it, and opens it with
   `open -g "monoword://read?file=…"`. The hook never blocks Claude from stopping, and it adds
   nothing to the conversation.
-- The mode is per session. State lives in the plugin's data folder,
-  `~/.claude/plugins/data/monoword/`: `sessions/<id>` holds `on` or `off`, and
-  `replies/<id>.txt` holds the last finished reply of that session so `/monoword:read` can
-  reopen it. Nothing leaves your Mac; Monoword itself has no network access.
+- The mode is per session. State lives in the plugin's data folder under
+  `~/.claude/plugins/data/` (`monoword-monoword/` when installed from this marketplace):
+  `sessions/<id>` holds `on` or `off`, and `replies/<id>.txt` holds the last finished reply of
+  that session so `/monoword:read` can reopen it. Nothing leaves your Mac; Monoword itself has
+  no network access.
 - The scripts are bash and use `jq` when present, else `python3` (macOS 15 and later ship both;
   on macOS 14, `python3` comes with the Xcode Command Line Tools).
 

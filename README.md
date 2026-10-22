@@ -79,6 +79,8 @@ one word at a time. After `/monoword:on`, Claude writes its replies as plain spo
 (the answer first, short sentences, no markdown, no symbols) and each finished reply opens in
 Monoword by itself. `/monoword:off` ends it; `/monoword:read` opens the previous reply any time.
 
+![A Claude reply playing in Monoword at 500 wpm](docs/demo.gif)
+
 ```sh
 claude plugin marketplace add Utkarsh-Mishra444/monoword
 claude plugin install monoword@monoword

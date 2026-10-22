@@ -31,6 +31,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             SelfTest.run(outputDirectory: URL(fileURLWithPath: out))
             return
         }
+        if let i = CommandLine.arguments.firstIndex(of: "--render") {
+            RenderMode.run(arguments: Array(CommandLine.arguments[(i + 1)...]))
+            return
+        }
         Self.loadFrequencyTable()
         setUpStatusItem()
         registerHotKeys()

@@ -58,6 +58,9 @@ final class ReaderController: NSObject, NSWindowDelegate {
     /// The self-test renders without putting a window on screen.
     var headless = false
 
+    /// Seconds the first word sits still after opening, before the words start moving (autoStart).
+    static let settleBeforeStart: TimeInterval = 0.45
+
     private(set) var panel: ReaderPanel?
     private(set) var session: ReadingSession?
     private(set) var isPlaying = false
@@ -123,7 +126,7 @@ final class ReaderController: NSObject, NSWindowDelegate {
         show()
         if session != nil && settings.autoStart {
             // A beat to settle the eyes on the first word before the words start moving.
-            startTimer = Timer(timeInterval: 0.45, repeats: false) { [weak self] _ in self?.play() }
+            startTimer = Timer(timeInterval: Self.settleBeforeStart, repeats: false) { [weak self] _ in self?.play() }
             RunLoop.main.add(startTimer!, forMode: .common)
         }
     }
@@ -341,6 +344,11 @@ final class ReaderController: NSObject, NSWindowDelegate {
         timer?.invalidate()
         if pacing == nil { rebuildPacing() }
         let interval = pacing?.seconds(for: session.currentRange, clock: currentClock(), rampStep: rampStep) ?? 0.15
+        if manualClock {
+            let frames = quantizer.frames(for: interval)
+            manualHold = (frames, Double(frames) * frameDuration)
+            return
+        }
         if !headless, let clock = ensureFrameClock() {
             let frames = quantizer.frames(for: interval)
             let base = clock.isPaused || lastFrameTimestamp == 0 ? CACurrentMediaTime() + frameDuration : lastFrameTimestamp
@@ -377,6 +385,14 @@ final class ReaderController: NSObject, NSWindowDelegate {
         frameClock = nil
         lastFrameTimestamp = 0
     }
+
+    /// `Monoword --render` steps the clock by hand. With this on no timer or display link runs: each
+    /// flash's hold, in whole frames of the frame clock (60 Hz when headless) exactly as
+    /// `scheduleNext` gives them to it, waits in `manualHold` until `manualTick()` makes the step a
+    /// clock tick makes. Off in the app.
+    var manualClock = false
+    private(set) var manualHold = (frames: 0, seconds: 0.0)
+    func manualTick() { tick() }
 
     /// Self-test instrumentation: when on, the time of every word change is recorded.
     var recordChanges = false
