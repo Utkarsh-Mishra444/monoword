@@ -52,13 +52,24 @@ The size of the word is your terminal's font size (Cmd and plus in most terminal
 drawn in character cells and has no font size of its own.
 
 **Speed.** 500 wpm means 500 words a minute with the pauses included. When the plugin finds
-`monoword-schedule`, a small command line tool built from this repository, the strip uses the
-Monoword app's own timing, the same code the app runs: rarer and longer words a little longer,
-two tiny function words sharing a flash ("of the"), a beat at sentence ends, an ease-in over the
-first words, markdown markers dropped. It looks in `$MONOWORD_SCHEDULE`, then in
-`Monoword.app/Contents/MacOS/` under `~/Applications` and `/Applications`. Release 1.0 of the app
-does not include the tool yet, so for now build it from a clone of this repository and point the
-variable at it:
+`monoword-schedule`, the small command line tool that ships inside Monoword.app from app version
+1.1 (`Contents/MacOS/monoword-schedule`), the strip uses the app's own timing, the same code the
+app runs: rarer and longer words a little longer, two tiny function words sharing a flash ("of
+the"), a beat at sentence ends, an ease-in over the first words, markdown markers dropped. It
+looks in `$MONOWORD_SCHEDULE`, then in `Monoword.app/Contents/MacOS/` under `~/Applications` and
+`/Applications`.
+
+The plugin runs the tool only when the file carries no macOS quarantine mark (an app unzipped from
+a download carries one on every file inside it), so macOS never puts up a dialog about it. While
+the tool is quarantined the strip paces the words itself and says so once per session. To use the
+app's timing, clear the mark once:
+
+```sh
+xattr -dr com.apple.quarantine /Applications/Monoword.app
+```
+
+An app built from source carries no mark. Without the app, build the tool alone from a clone of
+this repository and point the variable at it:
 
 ```sh
 swift build -c release --product monoword-schedule

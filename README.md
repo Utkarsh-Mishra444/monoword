@@ -91,9 +91,10 @@ claude plugin marketplace add Utkarsh-Mishra444/monoword
 claude plugin install monoword@monoword
 ```
 
-The strip uses the app's own timing when it finds the `monoword-schedule` tool, and a simpler
-pacing at the same real speed when it does not. Details, including what the plugin tells Claude,
-the controls and where it keeps its state, are in [claude-plugin/README.md](claude-plugin/README.md).
+The strip uses the app's own timing when it finds the `monoword-schedule` tool, which ships inside
+Monoword.app from version 1.1, and a simpler pacing at the same real speed when it does not.
+Details, including what the plugin tells Claude, the controls, the quarantine note and where it
+keeps its state, are in [claude-plugin/README.md](claude-plugin/README.md).
 
 ## How it works
 
@@ -162,8 +163,9 @@ one PNG per flash plus `frames.txt` with each hold, headless, for demo animation
 links; `scripts/install.sh` puts the installed copy back, which the Claude Code plugin relies on.
 `monoword-schedule <text file | -> [wpm] [--chunk auto|1|2|3] [--frames 60]` prints the same
 timetable without the app, one `shown<TAB>seconds<TAB>words` line per flash; with `--frames 60`
-its holds match `frames.txt`. It is a bare executable with no app bundle and no Info.plist, so it
-cannot take over `monoword://` links.
+its holds match `frames.txt`. It is a bare executable with no Info.plist of its own, so running it
+cannot take over `monoword://` links; `scripts/build-app.sh` puts a copy at
+`Monoword.app/Contents/MacOS/monoword-schedule`, where the Claude Code plugin looks for it.
 
 ## License
 

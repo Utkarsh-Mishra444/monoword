@@ -1,6 +1,6 @@
 {
   "name": "monoword",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "Read Claude's replies one word at a time. /monoword:on makes replies plain spoken prose and plays each one word by word above the prompt; /monoword:on app opens them in the Monoword reader on your Mac.",
   "author": {
     "name": "Utkarsh Mishra"

@@ -107,21 +107,54 @@ test('a new reply mid-play takes over', async ($, on) => {
   expect(await shown(ui, /word 1 of 3/)).toBeDefined()
 })
 
-test('the app timing is used when monoword-schedule is there', async ($, on) => {
+test('the app timing is used when monoword-schedule is there and not quarantined', async ($, on) => {
   const tool = '/opt/monoword-schedule'
   const clock = world(on, { [`${DATA}/sessions/S1`]: 'tty', [`${DATA}/settings.json`]: '{"wpm": 700}', [tool]: '' }, { MONOWORD_SCHEDULE: tool })
   const runs: { argv: readonly string[]; stdin?: string }[] = []
   on('process.run', ($, e) => {
     runs.push({ argv: e.argv, stdin: e.init?.stdin })
+    if (e.argv[0] === 'xattr') {
+      return { value: { exitCode: 1, stdout: '', stderr: 'No such xattr: com.apple.quarantine\n', isStdoutTruncated: false, isStderrTruncated: false } }
+    }
     return { value: { exitCode: 0, stdout: 'One\t0.2\t1\ntwo, three.\t0.5\t2\n# words 3\n', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
   })
   await $.classic.Stop({ session_id: 'S1', last_assistant_message: REPLY, stop_hook_active: false })
   await clock.settle()
-  expect(runs).toEqual([{ argv: [tool, '-', '700', '--chunk', 'auto'], stdin: REPLY }])
+  expect(runs.map((r) => r.argv)).toEqual([['xattr', '-p', 'com.apple.quarantine', tool], [tool, '-', '700', '--chunk', 'auto']])
+  expect(runs[1].stdin).toBe(REPLY)
+  expect(toasts).toEqual([])
   const ui = await $.ui.mount(BAND)
   await clock.advance(200)
   expect(await shown(ui, 'two, three.')).toBeDefined()
   expect(await shown(ui, /word 2 of 3 · 0:01 left/)).toBeDefined()
+})
+
+// Before the test above: the note is module state, shown once per session, and this is the first
+// test in which the tool is found at all.
+test('a quarantined monoword-schedule is left alone: the fallback paces, and the strip says so once', async ($, on) => {
+  const tool = `${HOME}/Applications/Monoword.app/Contents/MacOS/monoword-schedule`
+  const clock = world(on, { [`${DATA}/sessions/S1`]: 'tty', [tool]: '' })
+  const runs: (readonly string[])[] = []
+  on('process.run', ($, e) => {
+    runs.push(e.argv)
+    return { value: { exitCode: 0, stdout: '0083;68f91c2a;Safari;8C7D1D3E-0000-4000-8000-000000000000\n', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
+  })
+  await $.classic.Stop({ session_id: 'S1', last_assistant_message: REPLY, stop_hook_active: false })
+  await clock.settle()
+  expect(runs).toEqual([['xattr', '-p', 'com.apple.quarantine', tool]])
+  expect(toasts).toEqual([
+    `Monoword's timing tool is still under macOS quarantine, so the strip paces the words itself. To use the app's timing, run once: xattr -dr com.apple.quarantine "${HOME}/Applications/Monoword.app"`,
+  ])
+  const ui = await $.ui.mount(BAND)
+  expect(await shown(ui, 'One')).toBeDefined()
+  await clock.advance(HOLDS[0] - 1)
+  expect(await shown(ui, 'One')).toBeDefined()
+  await clock.advance(1)                 // the fallback's 96 ms, not the tool's timing
+  expect(await shown(ui, 'two,')).toBeDefined()
+  await $.classic.Stop({ session_id: 'S1', last_assistant_message: 'Again now.', stop_hook_active: false })
+  await clock.settle()
+  expect(await shown(ui, 'Again')).toBeDefined()
+  expect(toasts.length).toBe(1)
 })
 
 test('/monoword:read plays the saved reply in terminal mode, and leaves app mode to its script', async ($, on) => {

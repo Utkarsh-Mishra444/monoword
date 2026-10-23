@@ -15,17 +15,26 @@ mkdir -p "$OUT" "$ROOT/.trash"
 # Uncommitted local extensions (Sources/*/Local, gitignored) are switched on only when present.
 LOCAL=""
 if [ -d Sources/MonowordApp/Local ]; then LOCAL="-Xswiftc -DLOCAL_EXTENSIONS"; fi
+# The app, and monoword-schedule (the reader's timetable for a text, which the Claude Code plugin's
+# strip runs from inside the bundle).
 if [ -n "$MONOWORD_UNIVERSAL" ]; then
   # One app for Apple silicon and Intel Macs (for downloads).
   for arch in arm64 x86_64; do
     swift build -c release --product Monoword --triple $arch-apple-macosx14.0 $LOCAL
+    swift build -c release --product monoword-schedule --triple $arch-apple-macosx14.0 $LOCAL
   done
   BIN="$ROOT/.build/Monoword-universal"
   lipo -create -output "$BIN" "$ROOT/.build/arm64-apple-macosx/release/Monoword" \
     "$ROOT/.build/x86_64-apple-macosx/release/Monoword"
+  TOOL="$ROOT/.build/monoword-schedule-universal"
+  lipo -create -output "$TOOL" "$ROOT/.build/arm64-apple-macosx/release/monoword-schedule" \
+    "$ROOT/.build/x86_64-apple-macosx/release/monoword-schedule"
 else
   swift build -c release --product Monoword $LOCAL
-  BIN="$(swift build -c release --product Monoword $LOCAL --show-bin-path)/Monoword"
+  swift build -c release --product monoword-schedule $LOCAL
+  BINDIR="$(swift build -c release --product Monoword $LOCAL --show-bin-path)"
+  BIN="$BINDIR/Monoword"
+  TOOL="$BINDIR/monoword-schedule"
 fi
 
 # Icon: drawn by scripts/make-icon.swift (no binary assets in the repo), cached in build/.
@@ -57,8 +66,11 @@ cp "$ICNS" "$STAGE/Contents/Resources/AppIcon.icns"
 cp Resources/word-frequency-en.txt "$STAGE/Contents/Resources/word-frequency-en.txt"
 cp "$BIN" "$STAGE/Contents/MacOS/Monoword"
 strip -x "$STAGE/Contents/MacOS/Monoword"
+cp "$TOOL" "$STAGE/Contents/MacOS/monoword-schedule"
+strip -x "$STAGE/Contents/MacOS/monoword-schedule"
 printf 'APPL????' > "$STAGE/Contents/PkgInfo"
 
+# The tool is signed first, then the bundle that seals it (nested code is signed inside out).
 SIGN_KC="$ROOT/.signing/signing.keychain-db"
 if [ -f "$SIGN_KC" ] && [ -z "$MONOWORD_ADHOC" ]; then
   security unlock-keychain -p "$(cat "$ROOT/.signing/keychain-password")" "$SIGN_KC"
@@ -70,12 +82,14 @@ if [ -f "$SIGN_KC" ] && [ -z "$MONOWORD_ADHOC" ]; then
   restore_kc() { echo "$KC_BEFORE" | tr '\n' '\0' | xargs -0 security list-keychains -d user -s; }
   trap restore_kc EXIT
   { echo "$KC_BEFORE"; echo "$SIGN_KC"; } | tr '\n' '\0' | xargs -0 security list-keychains -d user -s
+  codesign --force --sign "$IDENTITY" --keychain "$SIGN_KC" --timestamp=none "$STAGE/Contents/MacOS/monoword-schedule"
   codesign --force --sign "$IDENTITY" --keychain "$SIGN_KC" --timestamp=none "$STAGE"
   restore_kc; trap - EXIT
 else
+  codesign --force --sign - --timestamp=none "$STAGE/Contents/MacOS/monoword-schedule"
   codesign --force --sign - --timestamp=none "$STAGE"
 fi
 if [ -e "$APP" ]; then mv "$APP" "$ROOT/.trash/Monoword.app.$(date +%s)"; fi
 mv "$STAGE" "$APP"
-codesign --verify --strict "$APP"
+codesign --verify --strict --deep "$APP"
 echo "Built $APP ($(du -sh "$APP" | cut -f1), commit $COMMIT)"

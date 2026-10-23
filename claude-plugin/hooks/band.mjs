@@ -4,7 +4,8 @@
 // The mode, the speed and the saved reply live in the plugin's data folder, written by the
 // plugin's scripts (mode.sh is the only writer of sessions/<id>). This module reads them; the only
 // file it writes is last-play.json there, and only with MONOWORD_DEBUG=1. It makes no network
-// requests and opens nothing.
+// requests and opens nothing; the only programs it runs are monoword-schedule, xattr (to see
+// whether that tool is quarantined) and the plugin's own speed.sh and align.sh.
 //
 // Timing: monoword-schedule (the app's own timing code, from the Monoword app or
 // $MONOWORD_SCHEDULE) when it is there, else the simpler fallback in player.mjs. Each word change
@@ -232,15 +233,43 @@ async function replyFinished($, e) {
   })
 }
 
-/** monoword-schedule: $MONOWORD_SCHEDULE, else inside the Monoword app, else none. */
+/**
+ * monoword-schedule: $MONOWORD_SCHEDULE, else inside the Monoword app (shipped there from app
+ * version 1.1), else none. A copy macOS still holds under quarantine (an app unzipped from a
+ * download) is never run, so no dialog about it can come up: the strip says so once per session
+ * and paces the words itself.
+ */
 async function findTool($) {
   const home = await $.env.get('HOME')
   const env = await $.env.get('MONOWORD_SCHEDULE')
   const paths = [env, `${home}/Applications/Monoword.app/Contents/MacOS/${TOOL}`, `/Applications/Monoword.app/Contents/MacOS/${TOOL}`]
   for (const path of paths) {
-    if (path && (await $.fs.exists(path))) return path
+    if (!path || !(await $.fs.exists(path))) continue
+    if (await quarantined($, path)) {
+      noteQuarantine($, path)
+      continue
+    }
+    return path
   }
   return undefined
+}
+
+/** True when the file carries macOS's quarantine mark (the com.apple.quarantine attribute). */
+async function quarantined($, path) {
+  try {
+    const run = await $.process.run(['xattr', '-p', 'com.apple.quarantine', path], { timeoutMs: 3000 })
+    return run.exitCode === 0
+  } catch {
+    return false
+  }
+}
+
+let quarantineNoted = false     // module state: the note shows once per session
+function noteQuarantine($, path) {
+  if (quarantineNoted) return
+  quarantineNoted = true
+  const app = path.replace(/\/Contents\/MacOS\/[^/]+$/, '')
+  $.ui.toast(`Monoword's timing tool is still under macOS quarantine, so the strip paces the words itself. To use the app's timing, run once: xattr -dr com.apple.quarantine "${app}"`, { timeoutMs: 12000 })
 }
 
 async function buildSchedule($, text, wpm) {
